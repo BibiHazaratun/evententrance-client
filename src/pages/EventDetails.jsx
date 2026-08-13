@@ -11,6 +11,7 @@ const EventDetails = () => {
   const [error, setError] = useState('');
   const [registering, setRegistering] = useState(false);
   const [registration, setRegistration] = useState(null);
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -26,6 +27,29 @@ const EventDetails = () => {
     fetchEvent();
   }, [id]);
 
+  useEffect(() => {
+    const checkExistingRegistration = async () => {
+      if (!user) {
+        setCheckingRegistration(false);
+        return;
+      }
+      try {
+        const res = await api.get('/registrations/my');
+        const existing = res.data.find(
+          (r) => (r.event?._id || r.event) === id
+        );
+        if (existing) {
+          setRegistration(existing);
+        }
+      } catch (err) {
+        // ignore, fallback to button
+      } finally {
+        setCheckingRegistration(false);
+      }
+    };
+    checkExistingRegistration();
+  }, [id, user]);
+
   const handleRegister = async () => {
     setError('');
     setRegistering(true);
@@ -33,13 +57,17 @@ const EventDetails = () => {
       const res = await api.post(`/registrations/${id}`);
       setRegistration(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const msg = err.response?.data?.message || 'Registration failed';
+      setError(msg);
+      if (msg.toLowerCase().includes('already registered')) {
+        setRegistration({ alreadyRegisteredNoQr: true });
+      }
     } finally {
       setRegistering(false);
     }
   };
 
-  if (loading) return <div className="p-10 text-center text-gray-500">Loading...</div>;
+  if (loading || checkingRegistration) return <div className="p-10 text-center text-gray-500">Loading...</div>;
   if (!event) return <div className="p-10 text-center text-red-500">{error}</div>;
 
   return (
@@ -54,7 +82,7 @@ const EventDetails = () => {
         <p><span className="font-medium text-gray-700">Organizer:</span> {event.organizer?.name}</p>
       </div>
 
-      {error && (
+      {error && !registration?.alreadyRegisteredNoQr && (
         <div className="bg-red-50 text-red-600 text-sm px-3 py-2 rounded-md mt-4">
           {error}
         </div>
@@ -63,8 +91,16 @@ const EventDetails = () => {
       {registration ? (
         <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-5 text-center">
           <p className="text-green-700 font-medium mb-3">You're registered! 🎉</p>
-          <img src={registration.qrImage} alt="QR Code" className="w-48 h-48 mx-auto" />
-          <p className="text-xs text-gray-500 mt-2">Show this QR code at the entrance</p>
+          {registration.qrImage ? (
+            <>
+              <img src={registration.qrImage} alt="QR Code" className="w-48 h-48 mx-auto" />
+              <p className="text-xs text-gray-500 mt-2">Show this QR code at the entrance</p>
+            </>
+          ) : (
+            <p className="text-xs text-gray-500">
+              Check "My Registrations" to view your QR code.
+            </p>
+          )}
         </div>
       ) : (
         <button
