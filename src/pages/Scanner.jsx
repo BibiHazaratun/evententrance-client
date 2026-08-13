@@ -4,6 +4,7 @@ import api from '../services/api';
 
 const Scanner = () => {
   const scannerRef = useRef(null);
+  const isStartedRef = useRef(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(true);
@@ -17,17 +18,26 @@ const Scanner = () => {
         { facingMode: 'environment' },
         { fps: 10, qrbox: 250 },
         async (decodedText) => {
-          // Stop scanning once a code is found
-          await html5QrCode.stop();
+          if (!isStartedRef.current) return;
+          isStartedRef.current = false;
+          try {
+            await html5QrCode.stop();
+          } catch {
+            // ignore
+          }
           setScanning(false);
           handleScan(decodedText);
         },
         () => {} // ignore per-frame scan failures
       )
+      .then(() => {
+        isStartedRef.current = true;
+      })
       .catch(() => setError('Unable to access camera'));
 
     return () => {
-      if (scannerRef.current) {
+      if (scannerRef.current && isStartedRef.current) {
+        isStartedRef.current = false;
         scannerRef.current.stop().catch(() => {});
       }
     };
@@ -44,9 +54,6 @@ const Scanner = () => {
   };
 
   const handleRescan = () => {
-    setResult(null);
-    setError('');
-    setScanning(true);
     window.location.reload();
   };
 
