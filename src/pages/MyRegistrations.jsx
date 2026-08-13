@@ -36,6 +36,13 @@ const MyRegistrations = () => {
               key={reg._id}
               className="bg-white border border-gray-200 rounded-lg p-5 flex gap-4 items-center"
             >
+              {reg.qrImage && (
+                <img
+                  src={reg.qrImage}
+                  alt="QR Code"
+                  className="w-20 h-20 flex-shrink-0"
+                />
+              )}
               <div className="flex-1">
                 <h2 className="font-semibold text-gray-800">{reg.event?.title}</h2>
                 <p className="text-sm text-gray-500">
